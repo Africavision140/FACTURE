@@ -154,7 +154,34 @@
   .col-num { width: 38px; text-align: center; font-size: 13px; color: var(--texte-mute); padding: 6px !important; }
   .col-qte { width: 90px; }
   .col-pu { width: 130px; }
+  .col-photo { width: 96px; text-align: center; padding: 4px !important; }
   .col-montant { width: 140px; text-align: right; }
+
+  /* ===== PHOTO D'ARTICLE ===== */
+  .photo-vide {
+    display: block; width: 100%; padding: 14px 4px; border: 1px dashed var(--bordure); border-radius: 6px;
+    background: #fff; color: var(--texte-mute); font-size: 11px; font-weight: 600; cursor: pointer; line-height: 1.3;
+  }
+  .photo-vide:hover { border-color: var(--bleu); color: var(--bleu); background: var(--bleu-clair); }
+  .photo-boite { position: relative; display: inline-block; }
+  .photo-boite img {
+    width: 84px; height: 62px; object-fit: cover; border-radius: 5px;
+    border: 1px solid var(--bordure); display: block; cursor: zoom-in;
+  }
+  .photo-retirer {
+    position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%;
+    background: var(--rouge); color: #fff; font-size: 12px; line-height: 1; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .photo-attente { font-size: 11px; color: var(--texte-mute); padding: 16px 4px; display: block; }
+
+  /* ===== VISIONNEUSE PLEIN ECRAN ===== */
+  #visionneuse {
+    display: none; position: fixed; inset: 0; z-index: 999;
+    background: rgba(10, 28, 70, .92); align-items: center; justify-content: center; padding: 24px;
+  }
+  #visionneuse img { max-width: 100%; max-height: 88vh; border-radius: 8px; }
+  #visionneuse .fermer { position: absolute; top: 16px; right: 18px; background: #fff; color: var(--bleu-fonce); }
   .col-suppr { width: 44px; text-align: center; padding: 4px !important; }
 
   .totaux { display: flex; justify-content: flex-end; margin-bottom: 16px; }
@@ -189,7 +216,8 @@
     body * { visibility: hidden; }
     #zoneImpression, #zoneImpression *, #zoneImpressionBordereau, #zoneImpressionBordereau * { visibility: visible; }
     #zoneImpression, #zoneImpressionBordereau { position: absolute; top: 0; left: 0; width: 100%; padding: 20px; }
-    .onglets, .actions-bas, .btn-danger, #boutonAjouterLigne, .col-suppr { display: none !important; }
+    .onglets, .actions-bas, .btn-danger, #boutonAjouterLigne, .col-suppr,
+    .photo-vide, .photo-retirer, #visionneuse { display: none !important; }
     .entete-impression { display: block !important; }
     .badge-facture-impression, .entete, .entete-impression { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
@@ -241,7 +269,7 @@
           <input type="text" id="nomClient" placeholder="Ex : Mamadou Diallo">
         </div>
       </div>
-      <div class="ligne-champs">
+      <div class="ligne-champs" style="grid-template-columns:1fr;">
         <div>
           <label>Type de prestation</label>
           <select id="typePrestation">
@@ -254,10 +282,6 @@
             <option>Autre</option>
           </select>
         </div>
-        <div>
-          <label>Référence dossier / PNR <span style="font-weight:400;">(facultatif)</span></label>
-          <input type="text" id="referenceDossier" placeholder="Ex : 6XK9PL">
-        </div>
       </div>
 
       <table class="tableau-articles">
@@ -267,6 +291,7 @@
             <th>Désignation</th>
             <th class="col-qte">Quantité</th>
             <th class="col-pu">P. Unitaire</th>
+            <th class="col-photo">Photo</th>
             <th class="col-montant">Montant</th>
             <th class="col-suppr"></th>
           </tr>
@@ -313,6 +338,12 @@
   <!-- ===== PANNEAU HISTORIQUE ===== -->
   <div class="panneau" id="panneauHistorique" style="display:none;">
     <div id="listeHistorique"><p class="vide">Chargement...</p></div>
+  </div>
+
+  <!-- ===== VISIONNEUSE PLEIN ECRAN ===== -->
+  <div id="visionneuse" onclick="fermerVisionneuse()">
+    <button class="fermer btn-secondaire" onclick="fermerVisionneuse()">Fermer ✕</button>
+    <img id="visionneuseImage" alt="Photo de l'article">
   </div>
 
   <!-- ===== PANNEAU BORDEREAU MENSUEL ===== -->
@@ -471,7 +502,8 @@
       id: compteurLigneId,
       designation: designation || "",
       quantite: quantite || 1,
-      prixUnitaire: prixUnitaire || 0
+      prixUnitaire: prixUnitaire || 0,
+      image: ""
     });
     redessinerTableau();
   }
@@ -493,15 +525,109 @@
       tr.setAttribute("data-id", ligne.id);
       tr.innerHTML = `
         <td class="col-num">${index + 1}</td>
-        <td><input type="text" value="${echapper(ligne.designation)}" placeholder="Ex : Billet Conakry — Dakar (aller-retour)" oninput="majLigne(${ligne.id}, 'designation', this.value)"></td>
+        <td><input type="text" value="${echapper(ligne.designation)}" placeholder="Ex : Habits — carton de 20 pièces" oninput="majLigne(${ligne.id}, 'designation', this.value)"></td>
         <td class="col-qte"><input type="number" value="${ligne.quantite}" min="0" style="text-align:right" oninput="majLigne(${ligne.id}, 'quantite', this.value)"></td>
         <td class="col-pu"><input type="number" value="${ligne.prixUnitaire}" min="0" style="text-align:right" oninput="majLigne(${ligne.id}, 'prixUnitaire', this.value)"></td>
+        <td class="col-photo cellule-photo">${celluleImageHtml(ligne)}</td>
         <td class="col-montant cellule-montant" style="text-align:right; padding:6px 10px; font-weight:600;">${formatMontant(ligne.quantite * ligne.prixUnitaire)}</td>
         <td class="col-suppr"><button class="btn-danger" onclick="supprimerLigne(${ligne.id})">✕</button></td>
       `;
       corps.appendChild(tr);
     });
     recalculer();
+  }
+
+  // ==========================================================
+  // PHOTO PAR LIGNE D'ARTICLE
+  // ==========================================================
+  const PHOTO_COTE_MAX = 900;   // le plus grand cote apres redimensionnement
+  const PHOTO_QUALITE = 0.72;   // compression JPEG
+
+  function celluleImageHtml(ligne) {
+    if (ligne.image) {
+      return `
+        <div class="photo-boite">
+          <img src="${ligne.image}" onclick="agrandirImage(${ligne.id})" alt="Photo article" title="Cliquer pour agrandir">
+          <button class="photo-retirer" onclick="retirerImage(${ligne.id})" title="Retirer la photo">✕</button>
+        </div>`;
+    }
+    return `
+      <label class="photo-vide">
+        + Photo
+        <input type="file" accept="image/*" style="display:none" onchange="chargerImage(${ligne.id}, this)">
+      </label>`;
+  }
+
+  function redessinerCellulePhoto(id) {
+    const ligne = lignesArticles.find(l => l.id === id);
+    const cellule = document.querySelector(`tr[data-id="${id}"] .cellule-photo`);
+    if (ligne && cellule) cellule.innerHTML = celluleImageHtml(ligne);
+  }
+
+  // Redimensionne et compresse la photo avant de la garder (une facture doit rester sous 1 Mo)
+  function compresserImage(fichier) {
+    return new Promise((resolve, reject) => {
+      const lecteur = new FileReader();
+      lecteur.onerror = () => reject(new Error("Lecture du fichier impossible"));
+      lecteur.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error("Image illisible"));
+        img.onload = () => {
+          let { width, height } = img;
+          const facteur = Math.min(1, PHOTO_COTE_MAX / Math.max(width, height));
+          width = Math.round(width * facteur);
+          height = Math.round(height * facteur);
+          const toile = document.createElement("canvas");
+          toile.width = width;
+          toile.height = height;
+          const ctx = toile.getContext("2d");
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(toile.toDataURL("image/jpeg", PHOTO_QUALITE));
+        };
+        img.src = lecteur.result;
+      };
+      lecteur.readAsDataURL(fichier);
+    });
+  }
+
+  async function chargerImage(id, champFichier) {
+    const fichier = champFichier.files && champFichier.files[0];
+    if (!fichier) return;
+    const ligne = lignesArticles.find(l => l.id === id);
+    if (!ligne) return;
+
+    const cellule = document.querySelector(`tr[data-id="${id}"] .cellule-photo`);
+    if (cellule) cellule.innerHTML = `<span class="photo-attente">Traitement...</span>`;
+
+    try {
+      ligne.image = await compresserImage(fichier);
+    } catch (e) {
+      alert("Impossible de charger cette image. Essaie une autre photo.");
+      console.error(e);
+      ligne.image = "";
+    }
+    redessinerCellulePhoto(id);
+  }
+
+  function retirerImage(id) {
+    const ligne = lignesArticles.find(l => l.id === id);
+    if (!ligne) return;
+    ligne.image = "";
+    redessinerCellulePhoto(id);
+  }
+
+  function agrandirImage(id) {
+    const ligne = lignesArticles.find(l => l.id === id);
+    if (!ligne || !ligne.image) return;
+    document.getElementById("visionneuseImage").src = ligne.image;
+    document.getElementById("visionneuse").style.display = "flex";
+  }
+
+  function fermerVisionneuse() {
+    document.getElementById("visionneuse").style.display = "none";
+    document.getElementById("visionneuseImage").src = "";
   }
 
   function majLigne(id, champ, valeur) {
@@ -541,7 +667,6 @@
   async function nouvelleFacture() {
     document.getElementById("nomClient").value = "";
     document.getElementById("telephoneClient").value = "";
-    document.getElementById("referenceDossier").value = "";
     document.getElementById("typePrestation").selectedIndex = 0;
     document.getElementById("montantPaye").value = 0;
     document.getElementById("dateFacture").value = new Date().toISOString().split("T")[0];
@@ -584,8 +709,11 @@
       client: document.getElementById("nomClient").value,
       telephone: document.getElementById("telephoneClient").value,
       prestation: document.getElementById("typePrestation").value,
-      reference: document.getElementById("referenceDossier").value,
-      articles: lignesArticles.map(l => ({ designation: l.designation, quantite: l.quantite, prixUnitaire: l.prixUnitaire })),
+      articles: lignesArticles.map(l => {
+        const article = { designation: l.designation, quantite: l.quantite, prixUnitaire: l.prixUnitaire };
+        if (l.image) article.image = l.image;
+        return article;
+      }),
       total: total,
       paye: paye,
       reste: Math.max(total - paye, 0)
@@ -638,11 +766,10 @@
         const estPaye = f.reste === 0;
         const puceStatut = `<span style="font-size:11px; font-weight:600; padding:2px 8px; border-radius:10px; margin-left:6px; background:${estPaye ? "#dff0e8" : "#fdf1d6"}; color:${estPaye ? "#1f6b47" : "#916a05"};">${estPaye ? "Payé" : "Reste " + formatMontant(f.reste) + " GNF"}</span>`;
         const infoPrestation = f.prestation ? ` • ${echapper(f.prestation)}` : "";
-        const infoRef = f.reference ? ` • Réf ${echapper(f.reference)}` : "";
         div.innerHTML = `
           <div>
             <div class="num">${f.numero} ${puceStatut}</div>
-            <div class="details">${echapper(f.client) || "Client non renseigné"}${f.telephone ? " • " + echapper(f.telephone) : ""}${infoPrestation}${infoRef} — ${f.date} — Total : ${formatMontant(f.total)} GNF</div>
+            <div class="details">${echapper(f.client) || "Client non renseigné"}${f.telephone ? " • " + echapper(f.telephone) : ""}${infoPrestation} — ${f.date} — Total : ${formatMontant(f.total)} GNF</div>
           </div>
           <div style="display:flex; gap:6px;">
             <button class="btn-secondaire" onclick='rechargerFacture(${JSON.stringify(JSON.stringify(f))})'>Ouvrir</button>
@@ -675,10 +802,9 @@
     document.getElementById("dateFacture").value = f.date;
     document.getElementById("nomClient").value = f.client;
     document.getElementById("telephoneClient").value = f.telephone || "";
-    document.getElementById("referenceDossier").value = f.reference || "";
     if (f.prestation) document.getElementById("typePrestation").value = f.prestation;
     document.getElementById("montantPaye").value = f.paye;
-    lignesArticles = (f.articles || []).map(a => ({ id: ++compteurLigneId, ...a }));
+    lignesArticles = (f.articles || []).map(a => ({ id: ++compteurLigneId, image: "", ...a }));
     redessinerTableau();
     afficherOnglet("nouvelle");
   }
@@ -819,13 +945,11 @@
     const telephone = document.getElementById("telephoneClient").value;
     const date = document.getElementById("dateFacture").value;
     const prestation = document.getElementById("typePrestation").value;
-    const reference = document.getElementById("referenceDossier").value;
     const total = lignesArticles.reduce((s, l) => s + (l.quantite * l.prixUnitaire), 0);
     const paye = Number(document.getElementById("montantPaye").value) || 0;
     const libelle = (total > 0 && paye >= total) ? "Reçu" : "Facture";
 
     let texte = `*${AGENCE.marque}*\n${AGENCE.nomEn}\n${AGENCE.nomZh}\n\n${libelle} ${numero}\nDate : ${date}\nClient : ${client}\nPrestation : ${prestation}\n`;
-    if (reference.trim()) texte += `Référence : ${reference}\n`;
     texte += `\n`;
     lignesArticles.forEach(l => {
       texte += `- ${l.designation} x${l.quantite} = ${formatMontant(l.quantite * l.prixUnitaire)} GNF\n`;
@@ -846,7 +970,6 @@
     const client = document.getElementById("nomClient").value;
     const telephone = document.getElementById("telephoneClient").value;
     const prestation = document.getElementById("typePrestation").value;
-    const reference = document.getElementById("referenceDossier").value;
     const total = lignesArticles.reduce((s, l) => s + (l.quantite * l.prixUnitaire), 0);
     const paye = Number(document.getElementById("montantPaye").value) || 0;
     const reste = Math.max(total - paye, 0);
@@ -861,6 +984,7 @@
           <td style="padding:6px 10px; border:1px solid var(--bordure);">${echapper(l.designation)}</td>
           <td style="text-align:right; padding:6px 10px; border:1px solid var(--bordure);">${l.quantite}</td>
           <td style="text-align:right; padding:6px 10px; border:1px solid var(--bordure);">${formatMontant(l.prixUnitaire)}</td>
+          <td style="text-align:center; padding:4px; border:1px solid var(--bordure);">${l.image ? `<img src="${l.image}" style="width:84px; height:62px; object-fit:cover; border-radius:5px; display:block; margin:0 auto;" alt="Photo article">` : "—"}</td>
           <td style="text-align:right; padding:6px 10px; border:1px solid var(--bordure); font-weight:600;">${formatMontant(l.quantite * l.prixUnitaire)}</td>
         </tr>`;
     });
@@ -885,13 +1009,13 @@
       </div>
       <div class="ligne-champs">
         <div><label>Type de prestation</label><div style="padding:9px 10px; border:1px solid var(--bordure); border-radius:6px;">${echapper(prestation)}</div></div>
-        <div><label>Référence dossier / PNR</label><div style="padding:9px 10px; border:1px solid var(--bordure); border-radius:6px;">${echapper(reference) || "-"}</div></div>
+        <div></div>
       </div>
 
       <table class="tableau-articles" style="margin-top:10px;">
         <thead>
           <tr>
-            <th class="col-num">N°</th><th>Désignation</th><th class="col-qte">Quantité</th><th class="col-pu">P. Unitaire</th><th class="col-montant">Montant</th>
+            <th class="col-num">N°</th><th>Désignation</th><th class="col-qte">Quantité</th><th class="col-pu">P. Unitaire</th><th class="col-photo">Photo</th><th class="col-montant">Montant</th>
           </tr>
         </thead>
         <tbody>${lignesHtml}</tbody>
