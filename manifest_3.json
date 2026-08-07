@@ -1,0 +1,26 @@
+{
+  "name": "Africa Vision — Facturation",
+  "short_name": "AV Facturation",
+  "description": "Factures, reçus et bordereaux mensuels — Guangzhou Vision Multise Import and Export Limited.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#12306e",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
